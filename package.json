@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@expo/webpack-config": "^19.0.0",
+    "@react-native-async-storage/async-storage": "1.18.2",
     "@types/react": "~18.2.14",
     "expo": "~49.0.15",
     "expo-checkbox": "~2.4.0",

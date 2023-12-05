@@ -1,4 +1,3 @@
-import { StatusBar } from "expo-status-bar";
 import {
   Button,
   Image,
@@ -8,9 +7,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  requireNativeComponent,
 } from "react-native";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import aerodynamics from "./questions/aerodynamics.json";
 import legislation from "./questions/legislation.json";
@@ -19,9 +19,10 @@ import meteorology from "./questions/meteorology.json";
 import practice from "./questions/practice.json";
 
 import { Question } from "./src/types";
-import { useHotkeys } from "react-hotkeys-hook";
 
 import Checkbox from "expo-checkbox";
+import { useHotkeys } from "./src/hooks";
+import store from "./src/store";
 
 const categories = {
   all: "all",
@@ -39,6 +40,29 @@ const allQuestions = [
   ...meteorology.map((q) => ({ ...q, category: categories.meteorology })),
   ...practice.map((q) => ({ ...q, category: categories.practice })),
 ];
+
+function AutoHeightImage({ uri, style }) {
+  const [paintedWidth, setPaintedWidth] = useState(0);
+  const [resultHeight, setResultHeight] = useState(0);
+
+  useEffect(() => {
+    let stillMounted = true;
+    Image.getSize(uri, (realW, realH) => {
+      if (!paintedWidth || !stillMounted) return;
+      const shrinkRatio = realW / paintedWidth;
+      setResultHeight(realH / shrinkRatio);
+    });
+    return () => (stillMounted = false);
+  }, [paintedWidth]);
+
+  return (
+    <Image
+      style={[{ width: "100%" }, style, { height: resultHeight }]}
+      source={{ uri }}
+      onLayout={(event) => setPaintedWidth(event.nativeEvent.layout.width)}
+    />
+  );
+}
 
 function App() {
   const [ordering, setOrdering] = useState<"random" | "sequential">(
@@ -79,8 +103,8 @@ function App() {
     }
 
     if (selectedQuestion?.ID) {
-      // console.log(notes);
-      // localStorage.setItem(`q-${selectedQuestion?.ID}`, notes);
+      console.log(notes);
+      store.writeData(`q-${selectedQuestion?.ID}`, notes);
     }
 
     let nextQuestionIndex = 0;
@@ -105,14 +129,12 @@ function App() {
     }
 
     // Notes
-    // const n = localStorage.getItem(`q-${nextQuestion.ID}`);
-    // if (n) setNotes(n || "");
-    // else setNotes("");
+    store.getData(`q-${nextQuestion.ID}`).then((n) => setNotes(n));
   };
 
-  // useHotkeys("k", () => handleChangeQuestionClick(false));
-  // useHotkeys("j", () => handleChangeQuestionClick(true));
-  // useHotkeys("n,f", () => setShowAnswer(!showAnswer));
+  useHotkeys("k", () => handleChangeQuestionClick(false));
+  useHotkeys("j", () => handleChangeQuestionClick(true));
+  useHotkeys("n,f", () => setShowAnswer(!showAnswer));
 
   const getQuestionStyles = (answer: number) => {
     const isAnswer = `${answer}` === `${selectedQuestion?.Answer}`;
@@ -140,77 +162,53 @@ function App() {
             key={c}
             style={[
               styles.categoryItem,
-              // {
-              //   fontWeight: c === category ? "bold" : "normal",
-              //   marginRight: 8,
-              //   cursor: "pointer",
-              // },
+              {
+                //@ts-ignore
+                cursor: "pointer",
+              },
             ]}
             onPress={() => handleCategoryChangeClick(c)}
           >
-            <Text>{c}</Text>
+            <Text
+              style={[
+                {
+                  fontWeight: c === category ? "bold" : "normal",
+                  marginRight: 8,
+                },
+              ]}
+            >
+              {c}
+            </Text>
           </TouchableOpacity>
         ))}
         <TouchableOpacity
           key="help"
-          style={[
-            styles.categoryItem,
-            // { opacity: 0.6, cursor: "pointer", marginRight: 8 },
-          ]}
+          style={[styles.categoryItem, { opacity: 0.6, marginRight: 8 }]}
           onPress={showHelp}
         >
-          <Text>help</Text>
+          <Text
+            style={{
+              //@ts-ignore
+              cursor: "pointer",
+            }}
+          >
+            help
+          </Text>
         </TouchableOpacity>
       </ScrollView>
-
-      <View style={styles.buttonsContainer}>
-        <Button
-          onPress={() => setOrdering("random")}
-          title="random"
-          // style={[
-          // styles.button,
-          // {
-          //   fontWeight: ordering === "random" ? "bold" : "normal",
-          //   marginRight: 8,
-          //   cursor: "pointer",
-          // },
-          // ]}
-        />
-        <Button
-          onPress={() => setOrdering("sequential")}
-          title="sequential"
-          // style={[
-          //   styles.button,
-          //   {
-          //     fontWeight: ordering === "sequential" ? "bold" : "normal",
-          //     marginRight: 8,
-          //     cursor: "pointer",
-          //   },
-          // ]}
-        />
-        <Checkbox
-          value={showAnswer}
-          onChange={() => setShowAnswer((v) => !v)}
-        />
-        <Checkbox
-          value={revealAnswer}
-          onChange={() => setRevealAnswer((v) => !v)}
-        />
-      </View>
 
       <View style={styles.questionContainer}>
         <View style={styles.questionCard}>
           <Text>
             {selectedQuestionIndex + 1} of {eligibleQuestions.length}
           </Text>
-          <Text>{selectedQuestion?.Question}</Text>
+          <Text style={styles.questionText}>{selectedQuestion?.Question}</Text>
 
           <View style={styles.imageContainer}>
             {selectedQuestion?.ImageID && (
-              <Image
-                style={styles.image}
-                source={{ uri: `images/${selectedQuestion.ImageID}.jpg` }}
-                resizeMode="contain"
+              <AutoHeightImage
+                uri={require(`/assets/images/${selectedQuestion.ImageID}.jpg`)}
+                style={{}}
               />
             )}
           </View>
@@ -241,15 +239,51 @@ function App() {
         </View>
       </View>
 
+      <View style={styles.settingsContainer}>
+        <Button
+          onPress={() => setOrdering("random")}
+          title={`${ordering === "random" ? "✓" : ""} random`}
+          //@ts-ignore
+          style={[
+            styles.button,
+            {
+              marginRight: 8,
+              //@ts-ignore
+              cursor: "pointer",
+            },
+          ]}
+        />
+        <Button
+          onPress={() => setOrdering("sequential")}
+          title={`${ordering === "random" ? "" : "✓"} sequential`}
+          //@ts-ignore
+          style={[
+            styles.button,
+            {
+              marginRight: 8,
+              cursor: "pointer",
+            },
+          ]}
+        />
+        <Checkbox
+          value={showAnswer}
+          onChange={() => setShowAnswer((v) => !v)}
+        />
+        <Checkbox
+          value={revealAnswer}
+          onChange={() => setRevealAnswer((v) => !v)}
+        />
+      </View>
+
       <View style={styles.buttonsContainer}>
         <TouchableOpacity
-          style={[styles.button, styles.previousButton]}
+          style={[styles.actionButton, styles.previousButton]}
           onPress={() => handleChangeQuestionClick(false)}
         >
           <Text>Previous</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={[styles.button, styles.nextButton]}
+          style={[styles.actionButton, styles.nextButton]}
           onPress={() => handleChangeQuestionClick(true)}
         >
           <Text>Next</Text>
@@ -272,11 +306,12 @@ const styles = StyleSheet.create({
   categoryItem: {
     marginRight: 8,
   },
-  buttonsContainer: {
+  settingsContainer: {
     marginTop: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
   },
   button: {
     flex: 1,
@@ -286,19 +321,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    flex: 1,
   },
   questionCard: {
     border: "1px solid gray",
     padding: 8,
     borderRadius: 8,
-    width: 300,
+    width: "clamp(100px, 90vw, 1000px)",
   },
   imageContainer: {
-    maxHeight: 300,
+    // width: "100%",
+    // height: 20,
   },
   image: {
+    // width: "100%",
+    // height: 200,
     flex: 1,
-    width: "100%",
+  },
+  questionText: {
+    fontSize: 18,
   },
   answersContainer: {
     paddingVertical: 8,
@@ -313,13 +354,32 @@ const styles = StyleSheet.create({
     padding: 8,
     minHeight: 100,
   },
-  previousButton: {
-    backgroundColor: "gray",
+  buttonsContainer: {
+    marginTop: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
     height: 24,
   },
-  nextButton: {
-    backgroundColor: "gray",
+  actionButton: {
+    flex: 1,
+    fontFamily: "Roboto, sans-serif",
+    fontSize: 14,
+    color: "white",
+    padding: 4,
+    boxShadow: "rgb(0, 0, 0) 0px 0px 0px 0px",
+    borderRadius: 8,
+    transition: "1000ms",
+    transform: "translateY(0)",
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#3498db",
+    justifyContent: "center",
   },
+  previousButton: {},
+  nextButton: {},
 });
 
 export default App;
