@@ -10,7 +10,7 @@ import {
   requireNativeComponent,
 } from "react-native";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 
 import aerodynamics from "./questions/aerodynamics.json";
 import legislation from "./questions/legislation.json";
@@ -21,8 +21,9 @@ import practice from "./questions/practice.json";
 import { Question } from "./src/types";
 
 import Checkbox from "expo-checkbox";
-import { useHotkeys } from "./src/hooks";
+import { useResponsiveVisibility, useHotkeys } from "./src/hooks";
 import store from "./src/store";
+import { AutoHeightImage } from "./src/ui/AutoHeightImage";
 
 const categories = {
   all: "all",
@@ -41,29 +42,6 @@ const allQuestions = [
   ...practice.map((q) => ({ ...q, category: categories.practice })),
 ];
 
-function AutoHeightImage({ uri, style }) {
-  const [paintedWidth, setPaintedWidth] = useState(0);
-  const [resultHeight, setResultHeight] = useState(0);
-
-  useEffect(() => {
-    let stillMounted = true;
-    Image.getSize(uri, (realW, realH) => {
-      if (!paintedWidth || !stillMounted) return;
-      const shrinkRatio = realW / paintedWidth;
-      setResultHeight(realH / shrinkRatio);
-    });
-    return () => (stillMounted = false);
-  }, [paintedWidth]);
-
-  return (
-    <Image
-      style={[{ width: "100%" }, style, { height: resultHeight }]}
-      source={{ uri }}
-      onLayout={(event) => setPaintedWidth(event.nativeEvent.layout.width)}
-    />
-  );
-}
-
 function App() {
   const [ordering, setOrdering] = useState<"random" | "sequential">(
     "sequential"
@@ -75,10 +53,16 @@ function App() {
 
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState(0);
 
+  //Do we show the answer by default, always?
   const [showAnswer, setShowAnswer] = useState(false);
+  //Do we "reveal" the answer when the user clicks "Next"?
   const [revealAnswer, setRevealAnswer] = useState(true);
 
+  //Notes stored locally for the currently loaded question
   const [notes, setNotes] = useState("");
+
+  // we'll just use a single breakpoint
+  const isLargeScreen = useResponsiveVisibility(450);
 
   const eligibleQuestions = useMemo(() => {
     if (category === categories.all) return allQuestions;
@@ -150,6 +134,7 @@ function App() {
     return a;
   };
 
+  // TODO: could make this more sophisticated
   const showHelp = () => {
     return window.alert("j -> next \nk -> prev \nn,f -> show/hide answer");
   };
@@ -199,7 +184,7 @@ function App() {
 
       <View style={styles.questionContainer}>
         <View style={styles.questionCard}>
-          <Text>
+          <Text style={styles.questionCount}>
             {selectedQuestionIndex + 1} of {eligibleQuestions.length}
           </Text>
           <Text style={styles.questionText}>{selectedQuestion?.Question}</Text>
@@ -208,7 +193,7 @@ function App() {
             {selectedQuestion?.ImageID && (
               <AutoHeightImage
                 uri={require(`/assets/images/${selectedQuestion.ImageID}.jpg`)}
-                style={{}}
+                style={{ maxHeight: 400 }}
               />
             )}
           </View>
@@ -234,45 +219,50 @@ function App() {
               value={notes}
               onChangeText={(text) => setNotes(text)}
               multiline
+              numberOfLines={2}
+              placeholder="Your notes here..."
             />
           </View>
         </View>
       </View>
 
       <View style={styles.settingsContainer}>
-        <Button
+        <TouchableOpacity
           onPress={() => setOrdering("random")}
-          title={`${ordering === "random" ? "✓" : ""} random`}
-          //@ts-ignore
-          style={[
-            styles.button,
-            {
-              marginRight: 8,
-              //@ts-ignore
-              cursor: "pointer",
-            },
-          ]}
-        />
-        <Button
+          style={[styles.actionButton]}
+        >
+          <Text style={styles.actionButtonText}>{`${
+            ordering === "random" ? "✓" : ""
+          } Random`}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           onPress={() => setOrdering("sequential")}
-          title={`${ordering === "random" ? "" : "✓"} sequential`}
-          //@ts-ignore
-          style={[
-            styles.button,
-            {
-              marginRight: 8,
-              cursor: "pointer",
-            },
-          ]}
-        />
-        <Checkbox
-          value={showAnswer}
-          onChange={() => setShowAnswer((v) => !v)}
-        />
-        <Checkbox
-          value={revealAnswer}
-          onChange={() => setRevealAnswer((v) => !v)}
-        />
+          style={[styles.actionButton]}
+        >
+          <Text style={styles.actionButtonText}>{`${
+            ordering === "random" ? "" : "✓"
+          } Sequential`}</Text>
+        </TouchableOpacity>
+        <View style={styles.checkboxContainer}>
+          <Checkbox
+            value={showAnswer}
+            onChange={() => setShowAnswer((v) => !v)}
+          />
+
+          {isLargeScreen && (
+            <Text style={styles.checkboxLabel}>Show answer</Text>
+          )}
+        </View>
+        <View style={styles.checkboxContainer}>
+          <Checkbox
+            value={revealAnswer}
+            onChange={() => setRevealAnswer((v) => !v)}
+          />
+
+          {isLargeScreen && (
+            <Text style={styles.checkboxLabel}>Reveal answer</Text>
+          )}
+        </View>
       </View>
 
       <View style={styles.buttonsContainer}>
@@ -280,13 +270,13 @@ function App() {
           style={[styles.actionButton, styles.previousButton]}
           onPress={() => handleChangeQuestionClick(false)}
         >
-          <Text>Previous</Text>
+          <Text style={styles.actionButtonText}>Previous</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, styles.nextButton]}
           onPress={() => handleChangeQuestionClick(true)}
         >
-          <Text>Next</Text>
+          <Text style={styles.actionButtonText}>Next</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -297,6 +287,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 8,
+    minWidth: 300,
   },
   categoryList: {
     listStyle: "none",
@@ -324,19 +315,19 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   questionCard: {
-    border: "1px solid gray",
-    padding: 8,
+    border: "1px solid lightgray",
+    padding: 16,
     borderRadius: 8,
-    width: "clamp(100px, 90vw, 1000px)",
+    width: "clamp(100px, 90vw, 800px)",
+    display: "flex",
+    flexDirection: "column",
   },
   imageContainer: {
-    // width: "100%",
-    // height: 20,
-  },
-  image: {
-    // width: "100%",
-    // height: 200,
     flex: 1,
+  },
+  questionCount: {
+    color: "gray",
+    marginBottom: 4,
   },
   questionText: {
     fontSize: 18,
@@ -349,10 +340,9 @@ const styles = StyleSheet.create({
   },
   notesInput: {
     borderWidth: 1,
-    borderColor: "gray",
+    borderColor: "lightgray",
     borderRadius: 8,
     padding: 8,
-    minHeight: 100,
   },
   buttonsContainer: {
     marginTop: 16,
@@ -363,7 +353,6 @@ const styles = StyleSheet.create({
     height: 24,
   },
   actionButton: {
-    flex: 1,
     fontFamily: "Roboto, sans-serif",
     fontSize: 14,
     color: "white",
@@ -377,9 +366,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#3498db",
     justifyContent: "center",
+    cursor: "pointer",
   },
-  previousButton: {},
-  nextButton: {},
+  actionButtonText: {
+    color: "white",
+    paddingHorizontal: 8,
+  },
+  previousButton: {
+    flex: 1,
+  },
+  nextButton: {
+    flex: 1,
+  },
+  checkboxContainer: {
+    border: "1px solid lightgray",
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 4,
+    borderRadius: 4,
+  },
+  checkboxLabel: {
+    marginLeft: 4,
+  },
 });
 
 export default App;

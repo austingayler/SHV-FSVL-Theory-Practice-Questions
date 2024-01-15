@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Dimensions } from "react-native";
 
 export const useHotkeys = (allowedKeys, callback) => {
   useEffect(() => {
@@ -21,4 +22,28 @@ export const useHotkeys = (allowedKeys, callback) => {
       }
     };
   }, [allowedKeys, callback]);
+};
+
+export const useResponsiveVisibility = (breakpointWidth) => {
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const screenWidth = Dimensions.get("window").width;
+      setIsVisible(screenWidth >= breakpointWidth);
+    };
+
+    // Initial check on mount
+    handleResize();
+
+    // Add event listener for screen resize
+    const listener = Dimensions.addEventListener("change", handleResize);
+
+    // Clean up the event listener on component unmount
+    return () => {
+      listener.remove();
+    };
+  }, [breakpointWidth]);
+
+  return isVisible;
 };
