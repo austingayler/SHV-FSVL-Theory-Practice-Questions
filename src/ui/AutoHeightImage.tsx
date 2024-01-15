@@ -26,7 +26,11 @@ export function AutoHeightImage({ uri, style }) {
 
   return (
     <Image
-      style={[{ width: "100%" }, style, { height: resultHeight, aspectRatio }]}
+      style={[
+        { width: "100%" },
+        style,
+        { height: resultHeight, aspectRatio, resizeMode: "contain" },
+      ]}
       source={{ uri }}
       onLayout={(event) => setPaintedWidth(event.nativeEvent.layout.width)}
     />
