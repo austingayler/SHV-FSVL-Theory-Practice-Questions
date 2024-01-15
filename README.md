@@ -2,7 +2,7 @@
 
 Helping to study for the SHV paragliding theory exam. 
 
-![App screenshot](https://file%252B.vscode-resource.vscode-cdn.net/Users/aj/code/pg-theory/app-screenshot.png?version%253D1705319780303)
+![App screenshot](app-screenshot.png)
 
 
 Project is built with Expo/React Native, so to start:
