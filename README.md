@@ -1,9 +1,8 @@
 # SHV-FSVL-Theory-Practice-Questions
 
-Helping to study for the SHV paragliding theory exam. 
+Helping you study for the SHV paragliding theory exam. 
 
-![App screenshot](app-screenshot.png)
-
+https://austingayler.github.io/SHV-FSVL-Theory-Practice-Questions/
 
 Project is built with Expo/React Native, so to start:
 
@@ -12,3 +11,7 @@ then
 `yarn start`
 
 Otherwise the usual commands apply, peek in package.json for everything.
+
+![App screenshot](app-screenshot.png)
+
+
